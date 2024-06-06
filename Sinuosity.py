@@ -1,16 +1,21 @@
+# Load Python packages
+
 import numpy as np       
 import xarray as xr
-import pandas as pd
 import matplotlib.pyplot as plt 
 from datetime import datetime as dt
 
-# Sinuosity index specific
+# Sinuosity index specific 
+
 import haversine as hv
 
-# For plotting
-from matplotlib import rc
+'''
+Calculate the distance (in various units) between two points on Earth using their latitude and longitude.
+To install: pip install haversine
+'''
 
-
+# Functions 
+ 
 def is_circumglobal(segment):
     '''
     Check if the first entry is below 0.5 and the last entry is above 359
@@ -65,12 +70,12 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
         for i_p in range(segment.shape[0]):         # loop over all points in a segment
             ''' 
             The haversine function below calculates the distance on Earth between to different lat/lon points in km. 
-            ax1.contour gives lon, lat, but haversine wants lat, lon, therefore the [::-1] is used to reverse the order of the points.
+            ax1.contour (in the main script) gives lon, lat, but haversine wants lat, lon, therefore the [::-1] is used to reverse the order of the points.
             '''
             length = hv.haversine(segment[i_p][::-1], segment[i_p-1][::-1], normalize=True)     
             ''' 
             If the distance between two points is larger than 150 km, it is assumed that the distance between the last point of the segment 
-            and the first point of the segment that crosses the 0/360 meridian
+            and the first point of the segment that crosses the 0/360 meridian, and therefore will be excluded.
             '''
             if length >= 150:                       
                     continue
@@ -91,7 +96,6 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
     connected_2 = []
 
     for i_s, segment in enumerate(segments[1]):
-        print('Segment: ', i_s, TOTAL_LENGTH[i_s], np.mean(segment[np.isin(segment[:, 1], TOTAL_LATS)][:, 1]), np.mean(segments[1][i_s][:,0]))
         '''
         Loop over segments
         '''
@@ -103,7 +107,7 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
                 circumglobal_longest = True
                 continue
             else:
-                print(i_s, 'Longest segment is strangly not circumglobal') #
+                print(i_s, 'Longest segment is strangly not circumglobal') # This can happen in very rare occassions 
                 continue
 
         elif segment[0][0] == 0.0 or segment[-1][0] == 359.296875 or segment[0][0] == 359.296875 or segment[-1][0] == 0.0:
@@ -119,13 +123,11 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
                         hv.haversine(k[-1][::-1], segment[-1][::-1], normalize=True) <= conn_thresh or \
                         hv.haversine(k[0][::-1], segment[-1][::-1], normalize=True) <= conn_thresh or \
                         hv.haversine(k[-1][::-1], segment[0][::-1], normalize=True) <= conn_thresh:
-                    # print(hv.haversine(k[0][::-1], l[0][::-1], normalize=True), hv.haversine(k[-1][::-1], l[-1][::-1], normalize=True),\
-                    #       hv.haversine(k[0][::-1], l[-1][::-1], normalize=True), hv.haversine(k[-1][::-1], l[0][::-1], normalize=True))
                     connected += 1
                     connected_1.append(i_s)
                     connected_2.append(i_k)
         else:
-            if TOTAL_LENGTH[i_s] <= resol_thresh:
+            if TOTAL_LENGTH[i_s] <= resol_thresh: # If the segment is shorter than the resolution threshold, it is considered a too small cut-off segment
                 TOTAL_LENGTH[i_s] = 0
                 length_cutoffs.append(TOTAL_LENGTH[i_s])
                 continue
@@ -134,10 +136,8 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
                 length_cutoffs.append(TOTAL_LENGTH[i_s])
                 LATS_CUT_OFFS.extend(segment[np.isin(segment[:, 1], TOTAL_LATS)][:, 1])
 
-    connected_segments = group_connected_segments(connected_1, connected_2)
+    connected_segments = group_connected_segments(connected_1, connected_2) # Groups the connected segments
 
-    # print('circumglobal longest: ', circumglobal_longest)
-    
     for connected_segment in connected_segments:
         length_connected_segment = []
         for i in connected_segment:
@@ -193,16 +193,15 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
     if len(LATS_CUT_OFFS) == 0:
         LATS_CUT_OFFS = np.nan
     if np.sum(length_cutoffs) > resol_thresh:
-        # print(f'Cut-off segments larger than {round(resol_thresh)} km')
         LENGTH_CUT_OFFS = np.sum(length_cutoffs)
     elif np.sum(length_cutoffs) <= resol_thresh:
-        # print(f'Cut-off segments smaller than {round(resol_thresh)} km')
         LENGTH_CUT_OFFS = np.nan
         TOTAL_LENGTH = TOTAL_LENGTH - np.sum(length_cutoffs)
     
-    plt.show()
-    
     return TOTAL_LENGTH, LENGTH_CIRCUMGLOBAL, LENGTH_CUT_OFFS, NUMBER_CUT_OFFS, TOTAL_LATS, LATS_CIRCUMGLOBAL, LATS_CUT_OFFS
+
+
+# Main script
 
 ### Data parameters ###
 experiments = ['CNTRL', 'SST4', 'RTG', 'PA'] 
@@ -241,7 +240,6 @@ for exp in experiments:
     print('Latitude ranges are calculated for the different hemisphere at different level' +  '\n')
 
     # Create or open a text file for output data
-    file =  open('Output_SI/' + exp + '_output_yearly.txt', 'w') 
 
     file1 = open('Output_SI/' + exp + "/" + exp + '_Z' + plev + '_NH_30_70.txt', 'w')
     file2 = open('Output_SI/' + exp + "/" + exp + '_Z' + plev + '_SH_30_70.txt', 'w')
@@ -389,8 +387,8 @@ for exp in experiments:
             ### Northern Hemisphere ###
             TOTAL_LENGTH, LENGTH_CIRCUMGLOBAL, LENGTH_CUT_OFFS, NUMBER_CUT_OFFS, TOTAL_LATS, LATS_CIRCUMGLOBAL, LATS_CUT_OFFS = lengths_for_SI(lines_NH, resol_thresh, conn_thresh)
 
-            exp_NH_30_70[i][0] = TOTAL_LENGTH                                      # Total length GPH including cut-off segments
-            exp_NH_30_70[i][1] = TOTAL_LENGTH / ref_50                             # SI metric, normalising with circumference Earth at 50 latitude
+            exp_NH_30_70[i][0] = TOTAL_LENGTH                                           # Total length GPH including cut-off segments
+            exp_NH_30_70[i][1] = TOTAL_LENGTH / ref_50                                  # SI metric, normalising with circumference Earth at 50 latitude
             exp_NH_30_70[i][2] = np.mean(TOTAL_LATS)                                    # mean lat of all points of the isohypse (this is right, because it takes the mean of all points and not mean of means)
             exp_NH_30_70[i][3] = np.max(TOTAL_LATS)                                     # max lat of all points of the isohypse
             exp_NH_30_70[i][4] = np.min(TOTAL_LATS)                                     # min lat of all points of the isohypse
@@ -412,8 +410,8 @@ for exp in experiments:
             ### Southern Hemisphere ###
             TOTAL_LENGTH, LENGTH_CIRCUMGLOBAL, LENGTH_CUT_OFFS, NUMBER_CUT_OFFS, TOTAL_LATS, LATS_CIRCUMGLOBAL, LATS_CUT_OFFS = lengths_for_SI(lines_SH, resol_thresh, conn_thresh)
 
-            exp_SH_30_70[i][0] = TOTAL_LENGTH                                          # Total length GPH including cut-off segments
-            exp_SH_30_70[i][1] = TOTAL_LENGTH / ref_50                                 # SI metric, normalising with circumference Earth at 50 latitude
+            exp_SH_30_70[i][0] = TOTAL_LENGTH                                               # Total length GPH including cut-off segments
+            exp_SH_30_70[i][1] = TOTAL_LENGTH / ref_50                                      # SI metric, normalising with circumference Earth at 50 latitude
             exp_SH_30_70[i][2] = np.mean(TOTAL_LATS)                                        # mean lat of all points of the isohypse (this is right, because it takes the mean of all points and not mean of means)
             exp_SH_30_70[i][3] = np.min(TOTAL_LATS)                                         # max lat of all points of the isohypse (note: Southern Hemisphere)
             exp_SH_30_70[i][4] = np.max(TOTAL_LATS)                                         # min lat of all points of the isohypse (note: Southern Hemisphere)
@@ -514,11 +512,12 @@ for exp in experiments:
             plt.close()
         del data, GPH, 
     
-    file.close()
     file1.close()
     file2.close()
     file3.close()
     file4.close()
+
+    print("Data is saved for experiment " + exp + "\n")
     
 # close all windowd 
 plt.close('all')
