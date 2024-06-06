@@ -205,7 +205,7 @@ def lengths_for_SI(segments, resol_thresh, conn_thresh):
 
 ### Data parameters ###
 experiments = ['CNTRL', 'SST4', 'RTG', 'PA'] 
-path = "path_to_data"
+path = "path_to_data/"
 plev = '500'
 
 ### Thresholds ###
@@ -227,11 +227,11 @@ for exp in experiments:
         
     print('Experiment: ' + exp + '\n')
         
-    zonmean = xr.open_dataset(path + exp + "/" + exp + "_" + expid + "_SH_timzonmean.nc")
+    zonmean = xr.open_dataset(path + exp + "/" + exp + "_zonmean.nc")
 
-    print('Adjusted SI-method lat range based on individual averages.\n')
+    print('Modified SI-method lat range based on individual averages.\n')
 
-    # Take time mean zonal mean to calculate the threshold and latitude range for less arbitrary threshold
+    # Take time mean zonal mean to calculate the threshold and latitude range based on the posistion of the jet
 
     u500_zonmean = zonmean['U'][0,:,:,0].sel(plev=50000)
     v500_zonmean = zonmean['V'][0,:,:,0].sel(plev=50000)
@@ -239,7 +239,7 @@ for exp in experiments:
     
     print('Latitude ranges are calculated for the different hemisphere at different level' +  '\n')
 
-    # Create or open a text file for output data
+    # Create and/or open a text file for output data
 
     file1 = open('Output_SI/' + exp + "/" + exp + '_Z' + plev + '_NH_30_70.txt', 'w')
     file2 = open('Output_SI/' + exp + "/" + exp + '_Z' + plev + '_SH_30_70.txt', 'w')
@@ -258,7 +258,7 @@ for exp in experiments:
         ### Loading the data ###
         ########################
 
-        data = xr.open_dataset(path + exp + "/" + exp + "_" + expid + "_" + str(y) + ".nc")
+        data = xr.open_dataset(path + exp + "/" + exp + "_Z500_" + str(y) + ".nc")
 
         GPH = data['Z'][:,:,:,:].sel(plev=int(plev) * 100) / 9.81 
         time = GPH.time
@@ -353,7 +353,7 @@ for exp in experiments:
         exp_NH_30_70 = np.full([len(time),19], np.nan)
         exp_SH_30_70 = np.full([len(time),19], np.nan)
         
-        # Adjusted SI metric based on individual averages and V500, normalised by circumference of the Earth at 40 degrees
+        # Modified SI metric based on individual averages and V500, normalised by circumference of the Earth at 40 degrees
         exp_NH_mod = np.full([len(time),19], np.nan)
         exp_SH_mod = np.full([len(time),19], np.nan)
 
